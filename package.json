@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "koffi": "^2.12.3"
+    "koffi": "^2.12.3",
+    "serialport": "^13.0.0"
   }
 }
