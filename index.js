@@ -1,7 +1,7 @@
 const path = require('path');
 const koffi = require('koffi');
 const os = require('os');
-
+const { EventEmitter } = require('events');
 const isWindows = os.platform() === 'win32';
 const baseDir = path.join(__dirname, 'dll', isWindows ? 'win' : 'linux');
 const dllPath = path.join(baseDir, isWindows ? 'ACBrBAL64.dll' : 'libacbrbal64.so');
@@ -103,6 +103,9 @@ function ultimoRetorno() {
    return res
 }
 
+
+
+
 function iniciarLeitura() {
   try {
     let res;
@@ -129,6 +132,13 @@ function iniciarLeitura() {
     console.log('Porta:', lerValor('BAL', 'Porta'));
     console.log('Último retorno:', ultimoRetorno());
 
+
+    const balancaEvents = new EventEmitter();
+    balancaEvents.on('pesoLido', (peso) => {
+      console.log('Peso emitido por evento:', peso);
+    });
+    let ultimoPeso = null;
+
     setInterval(() => {
       const timeout = 5000;
       const pesoPtr = koffi.alloc('double', 1);
@@ -137,7 +147,10 @@ function iniciarLeitura() {
 
       if (resPeso === 0) {
         const peso = koffi.decode(pesoPtr, 'double');
-        console.log('Peso lido:', peso.toFixed(3), 'kg');
+        if (peso !== ultimoPeso) {
+          ultimoPeso = peso;
+          balancaEvents.emit('pesoLido', peso.toFixed(3));
+        }
       } else {
         console.error('Erro ao ler peso:', ultimoRetorno());
       }
