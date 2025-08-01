@@ -38,86 +38,81 @@ const lib = {
   BAL_Ativar: balLib.func("BAL_Ativar", 'int', []),
   BAL_Desativar: balLib.func("BAL_Desativar", 'int', []),
   BAL_SolicitarPeso: balLib.func("BAL_SolicitarPeso", 'int', []),
-  BAL_LePeso: balLib.func("BAL_LePeso", 'int', ['char*', 'int']),
+  BAL_LePeso: balLib.func("BAL_LePeso", 'int', ['int', 'double*']),
+
 };
 
-function getNome(bufferSize = TAMANHO_BUFFER) {
-  const buffer = Buffer.alloc(bufferSize);
-  const tamanhoPtr = koffi.alloc('int', 1);
-  tamanhoPtr.writeInt32LE(bufferSize, 0);
+function getNome() {
+  const aloc_sResposta = Buffer.alloc(TAMANHO_BUFFER);
+  const aloc_esTamanho = koffi.alloc('int', 1);
+  koffi.encode(aloc_esTamanho, 'int', TAMANHO_BUFFER);
 
-  const res = lib.BAL_Nome(buffer, tamanhoPtr);
+  const res = lib.BAL_Nome(aloc_sResposta, aloc_esTamanho);
 
   if (res !== 0) {
     console.error("Erro ao chamar BAL_Nome. Código:", res);
     return null;
   }
 
-  const tamanhoReal = tamanhoPtr.deref();
-
-  return buffer.toString('utf8', 0, tamanhoReal).replace(/\0/g, '').trim();
+  return res
 }
 
-function getVersao(bufferSize = TAMANHO_BUFFER) {
-  const buffer = Buffer.alloc(bufferSize);
-  const tamanhoPtr = koffi.alloc('int', 1);
-  tamanhoPtr.writeInt32LE(bufferSize, 0);
+function getVersao() {
+  const aloc_sResposta = Buffer.alloc(TAMANHO_BUFFER);
+  const aloc_esTamanho = koffi.alloc('int', 1);
+  koffi.encode(aloc_esTamanho, 'int', TAMANHO_BUFFER);
 
-  const res = lib.BAL_Versao(buffer, tamanhoPtr);
+  const res = lib.BAL_Versao(aloc_sResposta, aloc_esTamanho);
 
   if (res !== 0) {
     console.error("Erro ao chamar BAL_Versao. Código:", res);
     return null;
   }
 
-  const tamanhoReal = tamanhoPtr.deref();
-
-  return buffer.toString('utf8', 0, tamanhoReal).replace(/\0/g, '').trim();
+  return res
 }
 
 function lerValor(sessao, chave, bufferSize = TAMANHO_BUFFER) {
-  const buffer = Buffer.alloc(bufferSize);
-  const tamanhoPtr = koffi.alloc('int', 1);
-  tamanhoPtr.writeInt32LE(bufferSize, 0);
+  const aloc_sResposta = Buffer.alloc(TAMANHO_BUFFER);
+  const aloc_esTamanho = koffi.alloc('int', 1);
+  koffi.encode(aloc_esTamanho, 'int', TAMANHO_BUFFER);
 
-  const res = lib.BAL_ConfigLerValor(sessao, chave, buffer, tamanhoPtr);
+
+  const res = lib.BAL_ConfigLerValor(sessao, chave, aloc_sResposta, aloc_esTamanho);
 
   if (res !== 0) {
     console.error(`Erro ao ler valor. Código: ${res}`);
     return null;
   }
 
-  const tamanhoReal = tamanhoPtr.deref();
-
-  return buffer.toString('utf8', 0, tamanhoReal).replace(/\0/g, '').trim();
+  return res
 }
 
-function ultimoRetorno(bufferSize = TAMANHO_BUFFER) {
-  const buffer = Buffer.alloc(bufferSize);
-  const tamanhoPtr = koffi.alloc('int', 1);
-  tamanhoPtr.writeInt32LE(bufferSize, 0);
+function ultimoRetorno() {
+  const aloc_sResposta = Buffer.alloc(TAMANHO_BUFFER);
+  const aloc_esTamanho = koffi.alloc('int', 1);
+  koffi.encode(aloc_esTamanho, 'int', TAMANHO_BUFFER);
 
-  const res = lib.BAL_UltimoRetorno(buffer, tamanhoPtr);
+  const res = lib.BAL_UltimoRetorno(aloc_sResposta, aloc_esTamanho);
 
   if (res !== 0) {
     console.error(`Erro ao obter último retorno. Código: ${res}`);
     return null;
   }
 
-  const tamanhoReal = tamanhoPtr.deref();
-
-  return buffer.toString('utf8', 0, tamanhoReal).replace(/\0/g, '').trim();
+   return res
 }
 
 function iniciarLeitura() {
   try {
     let res;
     
+    res = lib.BAL_Inicializar(eArqConfig, eChaveCrypt);
+    if (res !== 0) throw new Error(`Erro em BAL_Inicializar: ${res}`);
+
     res = lib.BAL_ConfigGravar(eArqConfig);
     if (res !== 0) throw new Error(`Erro em BAL_ConfigGravar: ${res}`);
 
-    res = lib.BAL_Inicializar(eArqConfig, eChaveCrypt);
-    if (res !== 0) throw new Error(`Erro em BAL_Inicializar: ${res}`);
 
     res = lib.BAL_ConfigLer(eArqConfig);
     if (res !== 0) throw new Error(`Erro em BAL_ConfigLer: ${res}`);
@@ -135,14 +130,19 @@ function iniciarLeitura() {
     console.log('Último retorno:', ultimoRetorno());
 
     setInterval(() => {
-      const buffer = Buffer.alloc(256);
-      const resPeso = lib.BAL_LePeso(buffer, 500);
+      const timeout = 5000;
+      const pesoPtr = koffi.alloc('double', 1);
+
+      const resPeso = lib.BAL_LePeso(timeout, pesoPtr);
+
       if (resPeso === 0) {
-        console.log('Peso lido:', buffer.toString('utf8').replace(/\0/g, '').trim());
+        const peso = koffi.decode(pesoPtr, 'double');
+        console.log('Peso lido:', peso.toFixed(3), 'kg');
       } else {
         console.error('Erro ao ler peso:', ultimoRetorno());
       }
     }, 1000);
+
 
   } catch (error) {
     console.error('Erro durante inicialização:', error);
